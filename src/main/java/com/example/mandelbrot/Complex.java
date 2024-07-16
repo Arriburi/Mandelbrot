@@ -8,13 +8,13 @@ public class Complex {
         this.real = real;
         this.imaginary = imaginary;
     }
-    public Complex add(Complex other) {
-        return new Complex(this.real + other.real, this.imaginary + other.imaginary);
+    public Complex add(Complex number) {
+        return new Complex(this.real + number.real, this.imaginary + number.imaginary);
     }
 
-    public Complex multiply(Complex other) {
-        double realPart = this.real * other.real - this.imaginary * other.imaginary;
-        double imaginaryPart = this.real * other.imaginary + this.imaginary * other.real;
+    public Complex multiply(Complex number) {
+        double realPart = this.real * number.real - this.imaginary * number.imaginary;
+        double imaginaryPart = this.real * number.imaginary + this.imaginary * number.real;
         return new Complex(realPart, imaginaryPart);
     }
 
