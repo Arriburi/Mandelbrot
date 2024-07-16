@@ -125,14 +125,14 @@ public class Mandelbrot extends Application {
                 Complex c = new Complex(realC, imagC);
 
                 //int iter = iterations[x][y];
-                int iter = calculateMandelbot(c);
+                int iter = calculateMandelbrot(c);
                 javafx.scene.paint.Color color = getColor(iter);
                 pixelWriter.setColor(x, y, color);
             }
         }
     }
 
-    private int calculateMandelbot(Complex c){
+    private int calculateMandelbrot(Complex c){
         Complex z = new Complex(0.0,0.0);
         int iter = 0;
         while (z.magnitudeSquared() <= 4 && iter < MAX_ITER){
