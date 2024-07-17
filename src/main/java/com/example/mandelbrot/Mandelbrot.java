@@ -13,11 +13,11 @@ import javafx.stage.Stage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.RecursiveTask;
+import java.util.concurrent.ForkJoinTask;
 
 public class Mandelbrot extends Application {
 
-    private static final int MIN_BLOCK_SIZE = 4;
+    public static final double MIN_BLOCK_SIZE = 4;
 
     private static final int MAX_ITER = 256;
     private static final double INITIAL_REAL_START = -2.0;
@@ -32,8 +32,8 @@ public class Mandelbrot extends Application {
     private double imagStart = INITIAL_IMAG_START;
     private double imagEnd = INITIAL_IMAG_END;
     private double zoomFactor = 1.0;
-    private double panX = 0.0;
-    private double panY = 0.0;
+    private double panFactor = 0.0;
+
 
    ExecutorService executorService = Executors.newSingleThreadExecutor();
 
@@ -69,19 +69,19 @@ public class Mandelbrot extends Application {
                 redrawMandelbrot(imageView, width, height);
             }
             case UP -> {
-                panY -= PAN_STEP / zoomFactor;
+                panFactor -= PAN_STEP / zoomFactor;
                 redrawMandelbrot(imageView, width, height);
             }
             case DOWN -> {
-                panY += PAN_STEP / zoomFactor;
+                panFactor += PAN_STEP / zoomFactor;
                 redrawMandelbrot(imageView, width, height);
             }
             case LEFT -> {
-                panX -= PAN_STEP / zoomFactor;
+                panFactor -= PAN_STEP / zoomFactor;
                 redrawMandelbrot(imageView, width, height);
             }
             case RIGHT -> {
-                panX += PAN_STEP / zoomFactor;
+                panFactor += PAN_STEP / zoomFactor;
                 redrawMandelbrot(imageView, width, height);
             }
         }
@@ -93,18 +93,27 @@ public class Mandelbrot extends Application {
             public WritableImage call() {
                 WritableImage image = new WritableImage(width, height);
                 PixelWriter pixelWriter = image.getPixelWriter();
+                int[][] array = new int[width][height];
 
                 double realRange = (realEnd - realStart) / zoomFactor;
                 double imagRange = (imagEnd - imagStart) / zoomFactor;
-                double realCenter = realStart + (realEnd - realStart) / 2 + panX * realRange;
-                double imagCenter = imagStart + (imagEnd - imagStart) / 2 + panY * imagRange;
+
+                double realCenter = realStart + (realEnd - realStart) / 2 + panFactor * realRange;
+                double imagCenter = imagStart + (imagEnd - imagStart) / 2 + panFactor * imagRange;
 
                 double realStartZoomed = realCenter - realRange / 2;
                 double realEndZoomed = realCenter + realRange / 2;
                 double imagStartZoomed = imagCenter - imagRange / 2;
                 double imagEndZoomed = imagCenter + imagRange / 2;
 
-                drawMandlebrot(pixelWriter, width, height, realStartZoomed, realEndZoomed, imagStartZoomed, imagEndZoomed);
+                sequentialMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed, imagEndZoomed, array);
+                for (int x = 0; x < width; x++) {
+                    for (int y = 0; y < height; y++) {
+                        int iter = array[x][y];
+                        javafx.scene.paint.Color color = getColor(iter);
+                        pixelWriter.setColor(x, y, color);
+                    }
+                }
 
                 return image;
             }
@@ -114,25 +123,25 @@ public class Mandelbrot extends Application {
         task.setOnFailed(e -> System.err.println("Failed to generate Mandelbrot set: " + task.getException()));
 
         executorService.submit(task);
-        executorService.submit(task);
     }
 
-    private void drawMandlebrot(PixelWriter pixelWriter, int width, int height, double xmin, double xmax, double ymin, double ymax) {
+    public static void sequentialMandelbrot(double startX, double startY, double endX, double endY, int[][] iterations) {
+        int width = iterations.length;
+        int height = iterations[0].length;
+        double xScale = (endX - startX) / width;
+        double yScale = (endY - startY) / height;
+
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-                double realC = xmin + x * (xmax - xmin) / width;
-                double imagC = ymin + y * (ymax - ymin) / height;
-                Complex c = new Complex(realC, imagC);
-
-                //int iter = iterations[x][y];
-                int iter = calculateMandelbrot(c);
-                javafx.scene.paint.Color color = getColor(iter);
-                pixelWriter.setColor(x, y, color);
+                double real = startX + x * xScale;
+                double imaginary = startY + y * yScale;
+                Complex c = new Complex(real, imaginary);
+                iterations[x][y] = calculateMandelbrot(c);
             }
         }
     }
 
-    private int calculateMandelbrot(Complex c){
+    private static int calculateMandelbrot(Complex c){
         Complex z = new Complex(0.0,0.0);
         int iter = 0;
         while (z.magnitudeSquared() <= 4 && iter < MAX_ITER){
@@ -158,36 +167,6 @@ public class Mandelbrot extends Application {
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
         pool.invoke(new MandelbrotTask(0, 0, width, height, new int[width][height]));
     }
-    private static class MandelbrotTask extends RecursiveTask<Void> {
-        private final double startX, startY, endX, endY;
-        private final int[][] iterations;
-
-        public MandelbrotTask(double startX, double startY, double endX, double endY, int[][] iterations){
-            this.startX = startX;
-            this.startY = startY;
-            this.endX = endX;
-            this.endY = endY;
-            this.iterations = iterations;
-        }
-        @Override
-        protected Void compute() {
-
-            if(endX-startX < MIN_BLOCK_SIZE){
-                computeMandelbrot();
-            }
-
-            double midX = (endX - startX) / 2 + startX;
-            double midY = (endY - startY) / 2 + startY;
-
-            invokeAll(
-                    new MandelbrotTask(startX, startY, midX, midY, iterations),
-                    new MandelbrotTask(midX, startY, endX, midY, iterations),
-                    new MandelbrotTask(startX, midY, midX,endY, iterations),
-                    new MandelbrotTask(midX, midY, endX, endY, iterations)
-            );
-        }
-    }
-
 
     public static void main(String[] args) {
         launch(args);
