@@ -1,5 +1,6 @@
 package com.example.mandelbrot;
 
+
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.scene.Group;
@@ -17,7 +18,7 @@ import java.util.concurrent.ForkJoinTask;
 
 public class Mandelbrot extends Application {
 
-    public static final double MIN_BLOCK_SIZE = 4;
+    public static final double MIN_BLOCK_SIZE = 500;
 
     private static final int MAX_ITER = 256;
     private static final double INITIAL_REAL_START = -2.0;
@@ -32,10 +33,14 @@ public class Mandelbrot extends Application {
     private double imagStart = INITIAL_IMAG_START;
     private double imagEnd = INITIAL_IMAG_END;
     private double zoomFactor = 1.0;
-    private double panFactor = 0.0;
+    private double panX = 0.0;
+    private double panY = 0.0;
+
+    private String mode = "parallel";
 
 
-   ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     @Override
     public void start(Stage primaryStage) {
@@ -55,7 +60,6 @@ public class Mandelbrot extends Application {
 
         scene.setOnKeyPressed(event -> handleKeyPress(event.getCode(), imageView, width, height));
 
-
     }
 
     private void handleKeyPress(KeyCode code, ImageView imageView, int width, int height) {
@@ -69,19 +73,19 @@ public class Mandelbrot extends Application {
                 redrawMandelbrot(imageView, width, height);
             }
             case UP -> {
-                panFactor -= PAN_STEP / zoomFactor;
+                panY -= PAN_STEP / zoomFactor;
                 redrawMandelbrot(imageView, width, height);
             }
             case DOWN -> {
-                panFactor += PAN_STEP / zoomFactor;
+                panY += PAN_STEP / zoomFactor;
                 redrawMandelbrot(imageView, width, height);
             }
             case LEFT -> {
-                panFactor -= PAN_STEP / zoomFactor;
+                panX -= PAN_STEP / zoomFactor;
                 redrawMandelbrot(imageView, width, height);
             }
             case RIGHT -> {
-                panFactor += PAN_STEP / zoomFactor;
+                panX += PAN_STEP / zoomFactor;
                 redrawMandelbrot(imageView, width, height);
             }
         }
@@ -98,15 +102,33 @@ public class Mandelbrot extends Application {
                 double realRange = (realEnd - realStart) / zoomFactor;
                 double imagRange = (imagEnd - imagStart) / zoomFactor;
 
-                double realCenter = realStart + (realEnd - realStart) / 2 + panFactor * realRange;
-                double imagCenter = imagStart + (imagEnd - imagStart) / 2 + panFactor * imagRange;
+                double realCenter = realStart + (realEnd - realStart) / 2 + panX * realRange;
+                double imagCenter = imagStart + (imagEnd - imagStart) / 2 + panY * imagRange;
 
                 double realStartZoomed = realCenter - realRange / 2;
                 double realEndZoomed = realCenter + realRange / 2;
                 double imagStartZoomed = imagCenter - imagRange / 2;
                 double imagEndZoomed = imagCenter + imagRange / 2;
 
-                sequentialMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed, imagEndZoomed, array);
+                long startTime = System.nanoTime();
+
+                switch (mode) {
+                    case "sequential":
+                        sequentialMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed,imagEndZoomed, array);
+                        break;
+                    case "parallel":
+                        parallelMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed, imagEndZoomed, array);
+                        break;
+                    //case "distributed":
+                    //    distributedMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed, imagEndZoomed, array);
+                    //    break;
+                    default:
+                        throw new IllegalArgumentException("Unknown mode: " + mode);
+                }
+
+                long endTime = System.nanoTime() - startTime;
+                System.out.println("Elapsed time: " + endTime/1000000 + " ms");
+
                 for (int x = 0; x < width; x++) {
                     for (int y = 0; y < height; y++) {
                         int iter = array[x][y];
@@ -139,6 +161,7 @@ public class Mandelbrot extends Application {
                 iterations[x][y] = calculateMandelbrot(c);
             }
         }
+        System.out.println("Mandelbrot set calculated in sequential.");
     }
 
     private static int calculateMandelbrot(Complex c){
@@ -163,13 +186,16 @@ public class Mandelbrot extends Application {
         }
     }
 
-    public static void computeMandelbrot(int width, int height){
+    public static void parallelMandelbrot(double startX, double startY, double endX, double endY, int[][] iterations){
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
-        pool.invoke(new MandelbrotTask(0, 0, width, height, new int[width][height]));
+        System.out.println("Main Thread Name: " + Thread.currentThread().getName());
+        pool.invoke(new MandelbrotTask(startX, startY, endX, endY, iterations));
+        pool.shutdown();
+        System.out.println("Mandelbrot set calculated in parallel.");
     }
 
     public static void main(String[] args) {
-        launch(args);
+            launch(args);
     }
 
     @Override

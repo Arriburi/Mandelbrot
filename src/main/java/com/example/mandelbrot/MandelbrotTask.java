@@ -5,7 +5,7 @@ import java.util.concurrent.RecursiveTask;
 
 import static com.example.mandelbrot.Mandelbrot.MIN_BLOCK_SIZE;
 
-public class MandelbrotTask extends RecursiveTask<Void> {
+public class MandelbrotTask extends RecursiveAction  {
 
     private final double startX, startY, endX, endY;
     private final int[][] iterations;
@@ -19,7 +19,9 @@ public class MandelbrotTask extends RecursiveTask<Void> {
     }
 
     @Override
-    protected Void compute() {
+    protected void compute() {
+        System.out.println("Thread Name: " + Thread.currentThread().getName());
+
         if (endX-startX <= MIN_BLOCK_SIZE || endY-startY <= MIN_BLOCK_SIZE){
             Mandelbrot.sequentialMandelbrot(startX, startY, endX, endY, iterations);
         } else {
@@ -33,6 +35,5 @@ public class MandelbrotTask extends RecursiveTask<Void> {
                     new MandelbrotTask(midX, midY, endX, endY, iterations)
             );
         }
-        return null;
     }
 }
