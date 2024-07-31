@@ -10,6 +10,8 @@ import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,7 +20,10 @@ import java.util.concurrent.ForkJoinTask;
 
 public class Mandelbrot extends Application {
 
-    public static final double MIN_BLOCK_SIZE = 500;
+    private PauseTransition resizePause;
+
+
+    public static final double MIN_BLOCK_SIZE = 20;
 
     private static final int MAX_ITER = 256;
     private static final double INITIAL_REAL_START = -2.0;
@@ -60,6 +65,18 @@ public class Mandelbrot extends Application {
 
         scene.setOnKeyPressed(event -> handleKeyPress(event.getCode(), imageView, width, height));
 
+        resizePause = new PauseTransition(Duration.millis(500));
+        resizePause.setOnFinished(event -> redrawMandelbrot(imageView, (int)scene.getWidth(), (int)scene.getHeight()));
+
+        scene.widthProperty().addListener((observable, oldValue, newValue) -> {
+            imageView.setFitWidth(newValue.doubleValue());
+            resizePause.playFromStart();
+        });
+
+        scene.heightProperty().addListener((observable, oldValue, newValue) -> {
+            imageView.setFitHeight(newValue.doubleValue());
+            resizePause.playFromStart();
+        });
     }
 
     private void handleKeyPress(KeyCode code, ImageView imageView, int width, int height) {
@@ -161,7 +178,7 @@ public class Mandelbrot extends Application {
                 iterations[x][y] = calculateMandelbrot(c);
             }
         }
-        System.out.println("Mandelbrot set calculated in sequential.");
+        //System.out.println("sequentialMandelbrot run");
     }
 
     private static int calculateMandelbrot(Complex c){
@@ -188,10 +205,10 @@ public class Mandelbrot extends Application {
 
     public static void parallelMandelbrot(double startX, double startY, double endX, double endY, int[][] iterations){
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
-        System.out.println("Main Thread Name: " + Thread.currentThread().getName());
+        //System.out.println("Main Thread Name: " + Thread.currentThread().getName());
         pool.invoke(new MandelbrotTask(startX, startY, endX, endY, iterations));
         pool.shutdown();
-        System.out.println("Mandelbrot set calculated in parallel.");
+        //System.out.println("parallelMandelbrot run");
     }
 
     public static void main(String[] args) {
