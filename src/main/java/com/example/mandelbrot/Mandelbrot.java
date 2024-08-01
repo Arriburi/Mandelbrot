@@ -1,6 +1,5 @@
 package com.example.mandelbrot;
 
-
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.scene.Group;
@@ -13,12 +12,9 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
-
-import java.security.spec.RSAOtherPrimeInfo;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinTask;
 
 public class Mandelbrot extends Application {
 
@@ -35,13 +31,16 @@ public class Mandelbrot extends Application {
     private static final float ZOOM_FACTOR_STEP = 1.1f;
     private static final float PAN_STEP = 0.2f;
 
-    private float realStart = INITIAL_REAL_START;
-    private float realEnd = INITIAL_REAL_END;
-    private float imagStart = INITIAL_IMAG_START;
-    private float imagEnd = INITIAL_IMAG_END;
-    private float zoomFactor = 1.0f;
+    public static float realStart = INITIAL_REAL_START;
+    private static float realEnd = INITIAL_REAL_END;
+    public static float imagStart = INITIAL_IMAG_START;
+    private static float imagEnd = INITIAL_IMAG_END;
+    private static float zoomFactor = 1.0f;
     private float panX = 0.0f;
     private float panY = 0.0f;
+
+    public static volatile float scaleX;
+    public static volatile float scaleY;
 
     private String mode = "parallel";
     //private String mode = "sequential";
@@ -52,7 +51,7 @@ public class Mandelbrot extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        int width = 400;
+        int width = 800;
         int height = 400;
 
         ImageView imageView = new ImageView();
@@ -68,6 +67,7 @@ public class Mandelbrot extends Application {
 
         scene.setOnKeyPressed(event -> handleKeyPress(event.getCode(), imageView, width, height));
 
+        /*
         resizePause = new PauseTransition(Duration.millis(500));
         resizePause.setOnFinished(event -> redrawMandelbrot(imageView, (int)scene.getWidth(), (int)scene.getHeight()));
 
@@ -80,36 +80,34 @@ public class Mandelbrot extends Application {
             imageView.setFitHeight(newValue.floatValue());
             resizePause.playFromStart();
         });
+
+         */
     }
 
 
     private void handleKeyPress(KeyCode code, ImageView imageView, int width, int height) {
+        float panFactor = PAN_STEP / zoomFactor;
         switch (code) {
             case PLUS, EQUALS -> {
                 zoomFactor *= ZOOM_FACTOR_STEP;
-                redrawMandelbrot(imageView, width, height);
             }
             case MINUS -> {
                 zoomFactor /= ZOOM_FACTOR_STEP;
-                redrawMandelbrot(imageView, width, height);
             }
             case UP -> {
-                panY -= PAN_STEP / zoomFactor;
-                redrawMandelbrot(imageView, width, height);
+                panY -= panFactor;
             }
             case DOWN -> {
-                panY += PAN_STEP / zoomFactor;
-                redrawMandelbrot(imageView, width, height);
+                panY += panFactor;
             }
             case LEFT -> {
-                panX -= PAN_STEP / zoomFactor;
-                redrawMandelbrot(imageView, width, height);
+                panX -= panFactor;
             }
             case RIGHT -> {
-                panX += PAN_STEP / zoomFactor;
-                redrawMandelbrot(imageView, width, height);
+                panX += panFactor;
             }
         }
+        redrawMandelbrot(imageView, width, height);
     }
 
     private void redrawMandelbrot(ImageView imageView, int width, int height) {
@@ -123,13 +121,16 @@ public class Mandelbrot extends Application {
                 float realRange = (realEnd - realStart) / zoomFactor;
                 float imagRange = (imagEnd - imagStart) / zoomFactor;
 
-                float realCenter = realStart + (realEnd - realStart) / 2 + panX * realRange;
-                float imagCenter = imagStart + (imagEnd - imagStart) / 2 + panY * imagRange;
+                scaleX  = width / realRange;
+                scaleY  = height / imagRange;
 
-                float realStartZoomed = realCenter - realRange / 2;
-                float realEndZoomed = realCenter + realRange / 2;
-                float imagStartZoomed = imagCenter - imagRange / 2;
-                float imagEndZoomed = imagCenter + imagRange / 2;
+                float realCenter = realStart + (realEnd - realStart) / 2f + panX * realRange;
+                float imagCenter = imagStart + (imagEnd - imagStart) / 2f + panY * imagRange;
+
+                float realStartZoomed = realCenter - realRange / 2f;
+                float realEndZoomed = realCenter + realRange / 2f;
+                float imagStartZoomed = imagCenter - imagRange / 2f;
+                float imagEndZoomed = imagCenter + imagRange / 2f;
 
                 long startTime = System.nanoTime();
 
@@ -171,43 +172,37 @@ public class Mandelbrot extends Application {
     }
 
     public static void sequentialMandelbrot(float startX, float startY, float endX, float endY, int[][] iterations) {
+
+       /*
+        realStart = -2.0f;
+        real_end = 1.0f;
+        imagStart = -1.0f;
+        imagEnd = 1.0f;
+       */
+
         float width = iterations.length;
         float height = iterations[0].length;
 
-        float startingOffsetX = startX;
-        float startingOffsetY = startY;
+        //float scaleX = width /  (endX - startX);
+        //float scaleY = height /  (endY - startY);
+        //float scaleX = width /  (realEnd - realStart)/zoomFactor;
+        //float scaleY = height /  (imagEnd - imagStart)/zoomFactor;
 
-       /*
-       float xScale = (endX - startX) / (width-1);
-        float yScale = (endY - startY) / (height-1);
+        for (float real = startX; real < endX; real += 1f/scaleX) {
+            for (float imaginary = startY; imaginary < endY; imaginary += 1f/scaleY) {
 
-        for (float real = startX; real < endX; real += xScale) {
-            for (float imaginary = startY; imaginary < endY; imaginary += yScale) {
+                int x = Math.round((real - startX) * scaleX);         //we are offsetting by 2.0  startX is realStart
+                int y = Math.round((imaginary - startY) * scaleY);    // + 1.0                    startY is imagStart  HERE IS THE PROBLEMOOOOo
 
-                int x = Math.round((real - startX) / xScale);
-                int y = Math.round((imaginary - startY) / yScale);
-
-                Complex c = new Complex(real, imaginary);
-
-                if (iterations[x][y] == 0) {
-                    iterations[x][y] = calculateMandelbrot(c);
-                }
-            }
-         }*/
-        float scale = 400 / 3;
-        //System.out.println("sx"+startX + "sy"+startY);
-        for (float real = startX; real < endX; real += 1/scale) {
-            for (float imaginary = startY; imaginary < endY; imaginary += 1/scale) {
-
-                int x = Math.round((real + 2.0f) * scale); //+ we are offsetting
-                int y = Math.round((imaginary + 1.0f) * scale);
-
-                System.out.println(x);
+                //System.out.println(x);
 
                 Complex c = new Complex(real, imaginary);
 
-                if (iterations[x][y] == 0) {
-                    iterations[x][y] = calculateMandelbrot(c);
+                int pixelX = (int) Math.max(0, Math.min(width - 1, x));
+                int pixelY = (int) Math.max(0, Math.min(height - 1, y));
+
+                if (iterations[pixelX][pixelY] == 0) {
+                    iterations[pixelX][pixelY] = calculateMandelbrot(c);
                 }
             }
          }
@@ -239,6 +234,7 @@ public class Mandelbrot extends Application {
     public static void parallelMandelbrot(float startX, float startY, float endX, float endY, int[][] iterations){
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
         pool.invoke(new MandelbrotTask(startX, startY, endX, endY, iterations));
+        pool.shutdown();
     }
 
     public static void main(String[] args) {

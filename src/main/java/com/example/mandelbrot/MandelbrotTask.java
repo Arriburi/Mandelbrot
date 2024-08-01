@@ -1,9 +1,8 @@
 package com.example.mandelbrot;
 
 import java.util.concurrent.RecursiveAction;
-import java.util.concurrent.RecursiveTask;
 
-import static com.example.mandelbrot.Mandelbrot.MIN_BLOCK_SIZE;
+import static com.example.mandelbrot.Mandelbrot.*;
 
 public class MandelbrotTask extends RecursiveAction  {
 
@@ -16,8 +15,6 @@ public class MandelbrotTask extends RecursiveAction  {
         this.endX = endX;
         this.endY = endY;
         this.iterations = iterations;
-
-
     }
 
     @Override
@@ -26,8 +23,8 @@ public class MandelbrotTask extends RecursiveAction  {
         if ((endX - startX) <= MIN_BLOCK_SIZE || (endY - startY) <= MIN_BLOCK_SIZE) {
             Mandelbrot.sequentialMandelbrot(startX, startY, endX, endY, iterations);
         } else {
-            float midX = (startX + endX) / 2;
-            float midY = (startY + endY) / 2;
+            float midX = (startX + endX) / 2f;
+            float midY = (startY + endY) / 2f;
 
             invokeAll(
 
