@@ -9,10 +9,12 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
 
+import java.security.spec.RSAOtherPrimeInfo;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -22,26 +24,27 @@ public class Mandelbrot extends Application {
 
     private PauseTransition resizePause;
 
+    public static final float MIN_BLOCK_SIZE = 0.1f;
 
-    public static final double MIN_BLOCK_SIZE = 20;
+    private static final int MAX_ITER = 256; //this sould be raised over time
 
-    private static final int MAX_ITER = 256;
-    private static final double INITIAL_REAL_START = -2.0;
-    private static final double INITIAL_REAL_END = 1.0;
-    private static final double INITIAL_IMAG_START = -1.0;
-    private static final double INITIAL_IMAG_END = 1.0;
-    private static final double ZOOM_FACTOR_STEP = 1.1;
-    private static final double PAN_STEP = 0.2;
+    private static final float INITIAL_REAL_START = -2.0f;
+    private static final float INITIAL_REAL_END = 1.0f;
+    private static final float INITIAL_IMAG_START = -1.0f;
+    private static final float INITIAL_IMAG_END = 1.0f;
+    private static final float ZOOM_FACTOR_STEP = 1.1f;
+    private static final float PAN_STEP = 0.2f;
 
-    private double realStart = INITIAL_REAL_START;
-    private double realEnd = INITIAL_REAL_END;
-    private double imagStart = INITIAL_IMAG_START;
-    private double imagEnd = INITIAL_IMAG_END;
-    private double zoomFactor = 1.0;
-    private double panX = 0.0;
-    private double panY = 0.0;
+    private float realStart = INITIAL_REAL_START;
+    private float realEnd = INITIAL_REAL_END;
+    private float imagStart = INITIAL_IMAG_START;
+    private float imagEnd = INITIAL_IMAG_END;
+    private float zoomFactor = 1.0f;
+    private float panX = 0.0f;
+    private float panY = 0.0f;
 
     private String mode = "parallel";
+    //private String mode = "sequential";
 
 
 
@@ -49,8 +52,8 @@ public class Mandelbrot extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        int width = 800;
-        int height = 600;
+        int width = 400;
+        int height = 400;
 
         ImageView imageView = new ImageView();
         imageView.setFitWidth(width);
@@ -69,15 +72,16 @@ public class Mandelbrot extends Application {
         resizePause.setOnFinished(event -> redrawMandelbrot(imageView, (int)scene.getWidth(), (int)scene.getHeight()));
 
         scene.widthProperty().addListener((observable, oldValue, newValue) -> {
-            imageView.setFitWidth(newValue.doubleValue());
+            imageView.setFitWidth(newValue.floatValue());
             resizePause.playFromStart();
         });
 
         scene.heightProperty().addListener((observable, oldValue, newValue) -> {
-            imageView.setFitHeight(newValue.doubleValue());
+            imageView.setFitHeight(newValue.floatValue());
             resizePause.playFromStart();
         });
     }
+
 
     private void handleKeyPress(KeyCode code, ImageView imageView, int width, int height) {
         switch (code) {
@@ -114,18 +118,18 @@ public class Mandelbrot extends Application {
             public WritableImage call() {
                 WritableImage image = new WritableImage(width, height);
                 PixelWriter pixelWriter = image.getPixelWriter();
-                int[][] array = new int[width][height];
+                int[][] array = new int[width][height]; //calculates entire Mandlebrot and not just view everytime(?)
 
-                double realRange = (realEnd - realStart) / zoomFactor;
-                double imagRange = (imagEnd - imagStart) / zoomFactor;
+                float realRange = (realEnd - realStart) / zoomFactor;
+                float imagRange = (imagEnd - imagStart) / zoomFactor;
 
-                double realCenter = realStart + (realEnd - realStart) / 2 + panX * realRange;
-                double imagCenter = imagStart + (imagEnd - imagStart) / 2 + panY * imagRange;
+                float realCenter = realStart + (realEnd - realStart) / 2 + panX * realRange;
+                float imagCenter = imagStart + (imagEnd - imagStart) / 2 + panY * imagRange;
 
-                double realStartZoomed = realCenter - realRange / 2;
-                double realEndZoomed = realCenter + realRange / 2;
-                double imagStartZoomed = imagCenter - imagRange / 2;
-                double imagEndZoomed = imagCenter + imagRange / 2;
+                float realStartZoomed = realCenter - realRange / 2;
+                float realEndZoomed = realCenter + realRange / 2;
+                float imagStartZoomed = imagCenter - imagRange / 2;
+                float imagEndZoomed = imagCenter + imagRange / 2;
 
                 long startTime = System.nanoTime();
 
@@ -146,12 +150,14 @@ public class Mandelbrot extends Application {
                 long endTime = System.nanoTime() - startTime;
                 System.out.println("Elapsed time: " + endTime/1000000 + " ms");
 
+
                 for (int x = 0; x < width; x++) {
                     for (int y = 0; y < height; y++) {
                         int iter = array[x][y];
-                        javafx.scene.paint.Color color = getColor(iter);
+                        Color color = getColor(iter);
                         pixelWriter.setColor(x, y, color);
                     }
+
                 }
 
                 return image;
@@ -164,22 +170,49 @@ public class Mandelbrot extends Application {
         executorService.submit(task);
     }
 
-    public static void sequentialMandelbrot(double startX, double startY, double endX, double endY, int[][] iterations) {
-        int width = iterations.length;
-        int height = iterations[0].length;
-        double xScale = (endX - startX) / width;
-        double yScale = (endY - startY) / height;
+    public static void sequentialMandelbrot(float startX, float startY, float endX, float endY, int[][] iterations) {
+        float width = iterations.length;
+        float height = iterations[0].length;
 
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                double real = startX + x * xScale;
-                double imaginary = startY + y * yScale;
+        float startingOffsetX = startX;
+        float startingOffsetY = startY;
+
+       /*
+       float xScale = (endX - startX) / (width-1);
+        float yScale = (endY - startY) / (height-1);
+
+        for (float real = startX; real < endX; real += xScale) {
+            for (float imaginary = startY; imaginary < endY; imaginary += yScale) {
+
+                int x = Math.round((real - startX) / xScale);
+                int y = Math.round((imaginary - startY) / yScale);
+
                 Complex c = new Complex(real, imaginary);
-                iterations[x][y] = calculateMandelbrot(c);
+
+                if (iterations[x][y] == 0) {
+                    iterations[x][y] = calculateMandelbrot(c);
+                }
             }
-        }
-        //System.out.println("sequentialMandelbrot run");
+         }*/
+        float scale = 400 / 3;
+        //System.out.println("sx"+startX + "sy"+startY);
+        for (float real = startX; real < endX; real += 1/scale) {
+            for (float imaginary = startY; imaginary < endY; imaginary += 1/scale) {
+
+                int x = Math.round((real + 2.0f) * scale); //+ we are offsetting
+                int y = Math.round((imaginary + 1.0f) * scale);
+
+                System.out.println(x);
+
+                Complex c = new Complex(real, imaginary);
+
+                if (iterations[x][y] == 0) {
+                    iterations[x][y] = calculateMandelbrot(c);
+                }
+            }
+         }
     }
+
 
     private static int calculateMandelbrot(Complex c){
         Complex z = new Complex(0.0,0.0);
@@ -191,24 +224,21 @@ public class Mandelbrot extends Application {
         return iter;
     }
 
-    private static javafx.scene.paint.Color getColor(int iter) {
+    private static Color getColor(int iter) {
         if (iter == MAX_ITER) {
-            return javafx.scene.paint.Color.BLACK;
+            return Color.BLACK;
         } else {
             int red = (iter % 8) * 32;
             int green = (iter % 16) * 16;
             int blue = (iter % 32) * 8;
 
-            return javafx.scene.paint.Color.rgb(red, green, blue);
+            return Color.rgb(red, green, blue);
         }
     }
 
-    public static void parallelMandelbrot(double startX, double startY, double endX, double endY, int[][] iterations){
+    public static void parallelMandelbrot(float startX, float startY, float endX, float endY, int[][] iterations){
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
-        //System.out.println("Main Thread Name: " + Thread.currentThread().getName());
         pool.invoke(new MandelbrotTask(startX, startY, endX, endY, iterations));
-        pool.shutdown();
-        //System.out.println("parallelMandelbrot run");
     }
 
     public static void main(String[] args) {
