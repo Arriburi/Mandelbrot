@@ -51,8 +51,8 @@ public class Mandelbrot extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        int width = 800;
-        int height = 400;
+        int width = 300;
+        int height = 300;
 
         ImageView imageView = new ImageView();
         imageView.setFitWidth(width);
@@ -114,6 +114,8 @@ public class Mandelbrot extends Application {
         Task<WritableImage> task = new Task<>() {
             @Override
             public WritableImage call() {
+
+                //reset pool everytime
                 WritableImage image = new WritableImage(width, height);
                 PixelWriter pixelWriter = image.getPixelWriter();
                 int[][] array = new int[width][height]; //calculates entire Mandlebrot and not just view everytime(?)
@@ -132,14 +134,21 @@ public class Mandelbrot extends Application {
                 float imagStartZoomed = imagCenter - imagRange / 2f;
                 float imagEndZoomed = imagCenter + imagRange / 2f;
 
+
+
+                System.out.println(realCenter);
+                System.out.println(imagCenter);
+                System.out.println(realStart);  //-2, -1
+                System.out.println(realEnd);   // 1, 1
+
                 long startTime = System.nanoTime();
 
                 switch (mode) {
                     case "sequential":
-                        sequentialMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed,imagEndZoomed, array);
+                        sequentialMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed, imagEndZoomed, realStartZoomed, imagStartZoomed, array);
                         break;
                     case "parallel":
-                        parallelMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed, imagEndZoomed, array);
+                        parallelMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed, imagEndZoomed, realStartZoomed, imagStartZoomed,  array);
                         break;
                     //case "distributed":
                     //    distributedMandelbrot(realStartZoomed, imagStartZoomed, realEndZoomed, imagEndZoomed, array);
@@ -172,6 +181,9 @@ public class Mandelbrot extends Application {
     }
 
     public static void sequentialMandelbrot(float startX, float startY, float endX, float endY, int[][] iterations) {
+        sequentialMandelbrot(startX, startY, endX, endY, realStart, imagStart, iterations);
+    }
+    public static void sequentialMandelbrot(float startX, float startY, float endX, float endY, float startXpanned, float startYpanned, int[][] iterations) {
 
        /*
         realStart = -2.0f;
@@ -183,16 +195,13 @@ public class Mandelbrot extends Application {
         float width = iterations.length;
         float height = iterations[0].length;
 
-        //float scaleX = width /  (endX - startX);
-        //float scaleY = height /  (endY - startY);
-        //float scaleX = width /  (realEnd - realStart)/zoomFactor;
-        //float scaleY = height /  (imagEnd - imagStart)/zoomFactor;
 
         for (float real = startX; real < endX; real += 1f/scaleX) {
             for (float imaginary = startY; imaginary < endY; imaginary += 1f/scaleY) {
 
-                int x = Math.round((real - startX) * scaleX);         //we are offsetting by 2.0  startX is realStart
-                int y = Math.round((imaginary - startY) * scaleY);    // + 1.0                    startY is imagStart  HERE IS THE PROBLEMOOOOo
+
+                int x = Math.round((real - startXpanned) * scaleX);
+                int y = Math.round((imaginary - startYpanned) * scaleY);
 
                 //System.out.println(x);
 
@@ -205,7 +214,7 @@ public class Mandelbrot extends Application {
                     iterations[pixelX][pixelY] = calculateMandelbrot(c);
                 }
             }
-         }
+        }
     }
 
 
@@ -231,9 +240,9 @@ public class Mandelbrot extends Application {
         }
     }
 
-    public static void parallelMandelbrot(float startX, float startY, float endX, float endY, int[][] iterations){
+    public static void parallelMandelbrot(float startX, float startY, float endX, float endY, float startXpanned, float startYpanned,  int[][] iterations){
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
-        pool.invoke(new MandelbrotTask(startX, startY, endX, endY, iterations));
+        pool.invoke(new MandelbrotTask(startX, startY, endX, endY, startXpanned, startYpanned,  iterations));
         pool.shutdown();
     }
 
