@@ -32,7 +32,7 @@ public class MandelbrotTask extends RecursiveAction  {
 
             invokeAll(
 
-                    new MandelbrotTask(startX, startY, midX, midY, startXpanned, startYpanned, iterations), // top-left quadrant
+                    new MandelbrotTask(startX, startY, midX , midY, startXpanned, startYpanned, iterations), // top-left quadrant
                     new MandelbrotTask(midX, startY, endX, midY, startXpanned, startYpanned, iterations),   // top-right quadrant
                     new MandelbrotTask(startX, midY, midX,endY, startXpanned, startYpanned, iterations),    // bottom-left quadrant
                     new MandelbrotTask(midX, midY, endX, endY, startXpanned, startYpanned, iterations)      // bottom-right quadrant
